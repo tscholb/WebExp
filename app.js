@@ -31,6 +31,18 @@
     installBanner: document.getElementById("install-banner"),
     btnInstall: document.getElementById("btn-install"),
     btnInstallDismiss: document.getElementById("btn-install-dismiss"),
+    btnHistory: document.getElementById("btn-history"),
+    historyDialog: document.getElementById("history-dialog"),
+    historyClose: document.getElementById("history-close"),
+    actionSheet: document.getElementById("action-sheet"),
+    actionSheetTitle: document.getElementById("action-sheet-title"),
+    statClicks: document.getElementById("stat-clicks"),
+    statVisited: document.getElementById("stat-visited"),
+    statActive: document.getElementById("stat-active"),
+    statStreak: document.getElementById("stat-streak"),
+    rankList: document.getElementById("rank-list"),
+    todayList: document.getElementById("today-list"),
+    spark: document.getElementById("spark"),
   };
 
   let deferredInstallPrompt = null;
@@ -51,24 +63,31 @@
     return `${y}-${m}-${d}`;
   }
 
+  function normalizeState(parsed) {
+    return {
+      sites: (parsed.sites || []).map((s, i) => ({
+        id: s.id || uid(),
+        name: String(s.name || ""),
+        url: String(s.url || ""),
+        category: String(s.category || "기타"),
+        iconUrl: s.iconUrl ? String(s.iconUrl) : "",
+        order: Number.isFinite(s.order) ? s.order : i,
+      })),
+      visits: parsed.visits && typeof parsed.visits === "object" ? parsed.visits : {},
+      clicks: parsed.clicks && typeof parsed.clicks === "object" ? parsed.clicks : {},
+      activeSeconds:
+        parsed.activeSeconds && typeof parsed.activeSeconds === "object" ? parsed.activeSeconds : {},
+      lastOpenedDate: parsed.lastOpenedDate || todayKey(),
+    };
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return seedState();
       const parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.sites)) return seedState();
-      return {
-        sites: parsed.sites.map((s, i) => ({
-          id: s.id || uid(),
-          name: String(s.name || ""),
-          url: String(s.url || ""),
-          category: String(s.category || "기타"),
-          iconUrl: s.iconUrl ? String(s.iconUrl) : "",
-          order: Number.isFinite(s.order) ? s.order : i,
-        })),
-        visits: parsed.visits && typeof parsed.visits === "object" ? parsed.visits : {},
-        lastOpenedDate: parsed.lastOpenedDate || todayKey(),
-      };
+      return normalizeState(parsed);
     } catch {
       return seedState();
     }
@@ -78,6 +97,8 @@
     return {
       sites: DEFAULT_SITES.map((s, i) => ({ ...s, id: uid(), iconUrl: "", order: i })),
       visits: {},
+      clicks: {},
+      activeSeconds: {},
       lastOpenedDate: todayKey(),
     };
   }
@@ -91,9 +112,17 @@
     const cutoff = new Date(today);
     cutoff.setDate(cutoff.getDate() - VISITS_RETENTION_DAYS);
     const cutoffKey = todayKey(cutoff);
-    for (const key of Object.keys(state.visits)) {
-      if (key < cutoffKey) delete state.visits[key];
+    for (const bag of [state.visits, state.clicks, state.activeSeconds]) {
+      for (const key of Object.keys(bag)) {
+        if (key < cutoffKey) delete bag[key];
+      }
     }
+  }
+
+  function recordClick(id) {
+    const key = todayKey();
+    if (!state.clicks[key]) state.clicks[key] = {};
+    state.clicks[key][id] = (state.clicks[key][id] || 0) + 1;
   }
 
   function getTodayVisits() {
@@ -216,7 +245,9 @@
     const link = node.querySelector(".card__link");
     link.href = site.url;
     link.addEventListener("click", () => {
+      recordClick(site.id);
       markVisited(site.id);
+      saveState();
       setTimeout(render, 0);
     });
 
@@ -229,15 +260,86 @@
     node.querySelector(".card__name").textContent = site.name;
     node.querySelector(".card__host").textContent = hostFromUrl(site.url);
 
-    node.querySelectorAll(".tool").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        handleToolAction(site.id, btn.dataset.action);
-      });
-    });
+    attachLongPress(node, link, site.id);
 
     return node;
+  }
+
+  const LONG_PRESS_MS = 500;
+
+  function attachLongPress(card, link, siteId) {
+    let timer = null;
+    let triggered = false;
+    let startX = 0;
+    let startY = 0;
+
+    const cancel = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      card.classList.remove("is-pressing");
+    };
+
+    const start = (e) => {
+      if (e.button != null && e.button !== 0) return;
+      triggered = false;
+      const p = e.touches ? e.touches[0] : e;
+      startX = p.clientX;
+      startY = p.clientY;
+      card.classList.add("is-pressing");
+      cancel._timer = timer = setTimeout(() => {
+        triggered = true;
+        card.classList.remove("is-pressing");
+        if (navigator.vibrate) {
+          try { navigator.vibrate(20); } catch {}
+        }
+        openActionSheet(siteId);
+      }, LONG_PRESS_MS);
+    };
+
+    const move = (e) => {
+      if (!timer) return;
+      const p = e.touches ? e.touches[0] : e;
+      if (Math.abs(p.clientX - startX) > 8 || Math.abs(p.clientY - startY) > 8) cancel();
+    };
+
+    card.addEventListener("pointerdown", start);
+    card.addEventListener("pointermove", move);
+    card.addEventListener("pointerup", cancel);
+    card.addEventListener("pointercancel", cancel);
+    card.addEventListener("pointerleave", cancel);
+
+    link.addEventListener("click", (e) => {
+      if (triggered) {
+        e.preventDefault();
+        triggered = false;
+      }
+    });
+
+    card.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      cancel();
+      openActionSheet(siteId);
+    });
+  }
+
+  function openActionSheet(siteId) {
+    const site = siteById(siteId);
+    if (!site) return;
+    els.actionSheetTitle.textContent = site.name;
+    els.actionSheet.dataset.siteId = siteId;
+    els.actionSheet.showModal();
+  }
+
+  function handleActionSheetClick(e) {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = els.actionSheet.dataset.siteId;
+    els.actionSheet.close();
+    if (action === "cancel" || !id) return;
+    handleToolAction(id, action);
   }
 
   function handleToolAction(id, action) {
@@ -363,18 +465,7 @@
         const parsed = JSON.parse(String(reader.result));
         if (!parsed || !Array.isArray(parsed.sites)) throw new Error("invalid format");
         if (!confirm("가져오기를 진행하면 현재 데이터가 대체됩니다. 계속할까요?")) return;
-        state = {
-          sites: parsed.sites.map((s, i) => ({
-            id: s.id || uid(),
-            name: String(s.name || ""),
-            url: String(s.url || ""),
-            category: String(s.category || "기타"),
-            iconUrl: s.iconUrl ? String(s.iconUrl) : "",
-            order: Number.isFinite(s.order) ? s.order : i,
-          })),
-          visits: parsed.visits && typeof parsed.visits === "object" ? parsed.visits : {},
-          lastOpenedDate: parsed.lastOpenedDate || todayKey(),
-        };
+        state = normalizeState(parsed);
         normalizeOrder();
         saveState();
         render();
@@ -392,6 +483,40 @@
       pruneVisits();
       saveState();
     }
+  }
+
+  let activeSince = null;
+
+  function flushActiveTime() {
+    if (activeSince == null) return;
+    const now = Date.now();
+    const elapsedSec = Math.max(0, Math.floor((now - activeSince) / 1000));
+    activeSince = now;
+    if (elapsedSec <= 0) return;
+    const key = todayKey();
+    state.activeSeconds[key] = (state.activeSeconds[key] || 0) + elapsedSec;
+    saveState();
+  }
+
+  function startActiveTracking() {
+    if (!document.hidden) activeSince = Date.now();
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        flushActiveTime();
+        activeSince = null;
+      } else {
+        activeSince = Date.now();
+      }
+    });
+    window.addEventListener("pagehide", flushActiveTime);
+    window.addEventListener("blur", () => {
+      flushActiveTime();
+      activeSince = null;
+    });
+    window.addEventListener("focus", () => {
+      if (activeSince == null) activeSince = Date.now();
+    });
+    setInterval(flushActiveTime, 30000);
   }
 
   function attachEvents() {
@@ -436,6 +561,167 @@
       localStorage.setItem(INSTALL_DISMISS_KEY, "1");
       els.installBanner.hidden = true;
     });
+
+    els.btnHistory.addEventListener("click", openHistory);
+    els.historyClose.addEventListener("click", () => els.historyDialog.close());
+    els.historyDialog.addEventListener("click", (e) => {
+      if (e.target === els.historyDialog) els.historyDialog.close();
+    });
+
+    els.actionSheet.addEventListener("click", handleActionSheetClick);
+    els.actionSheet.addEventListener("cancel", (e) => {
+      e.preventDefault();
+      els.actionSheet.close();
+    });
+  }
+
+  function openHistory() {
+    flushActiveTime();
+    renderHistory();
+    els.historyDialog.showModal();
+  }
+
+  function recentDateKeys(days) {
+    const keys = [];
+    const now = new Date();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      keys.push(todayKey(d));
+    }
+    return keys;
+  }
+
+  function computeStreak() {
+    const now = new Date();
+    let current = 0;
+    let longest = 0;
+    let run = 0;
+    const daysToCheck = 365;
+    for (let i = 0; i < daysToCheck; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = todayKey(d);
+      const visited = Array.isArray(state.visits[key]) && state.visits[key].length > 0;
+      if (visited) {
+        run += 1;
+        if (i === current) current = run;
+        if (run > longest) longest = run;
+      } else {
+        if (i === 0) {
+          // no visits today yet — don't break streak; continue counting from yesterday
+          current = 0;
+        } else {
+          run = 0;
+        }
+      }
+    }
+    return { current, longest };
+  }
+
+  function formatDuration(totalSec) {
+    const sec = Math.max(0, Math.floor(totalSec));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return { value: `${h}:${String(m).padStart(2, "0")}`, unit: "시간" };
+    return { value: String(m), unit: "분" };
+  }
+
+  function siteById(id) {
+    return state.sites.find((s) => s.id === id);
+  }
+
+  function renderHistory() {
+    const key = todayKey();
+    const todayClicks = state.clicks[key] || {};
+    const totalClicks = Object.values(todayClicks).reduce((a, b) => a + b, 0);
+    const total = state.sites.length;
+    const visited = (state.visits[key] || []).filter((id) => siteById(id)).length;
+
+    els.statClicks.innerHTML = `${totalClicks}<span class="stat__unit">회</span>`;
+    els.statVisited.textContent = `${visited} / ${total}`;
+
+    const activeSec = state.activeSeconds[key] || 0;
+    const dur = formatDuration(activeSec);
+    els.statActive.innerHTML = `${dur.value}<span class="stat__unit">${dur.unit}</span>`;
+
+    const streak = computeStreak();
+    els.statStreak.innerHTML = `${streak.current}<span class="stat__unit">일 · 최고 ${streak.longest}</span>`;
+
+    renderRankList(els.todayList, todayClicks);
+
+    const weekly = {};
+    for (const k of recentDateKeys(7)) {
+      const day = state.clicks[k] || {};
+      for (const [id, c] of Object.entries(day)) {
+        weekly[id] = (weekly[id] || 0) + c;
+      }
+    }
+    renderRankList(els.rankList, weekly);
+
+    renderSpark();
+  }
+
+  function renderRankList(container, counts) {
+    container.innerHTML = "";
+    const entries = Object.entries(counts)
+      .map(([id, c]) => ({ site: siteById(id), count: c }))
+      .filter((e) => e.site)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8);
+    if (entries.length === 0) return;
+    const max = entries[0].count || 1;
+    for (const { site, count } of entries) {
+      const li = document.createElement("li");
+      li.className = "rank-row";
+      const icon = document.createElement("img");
+      icon.className = "rank-row__icon";
+      icon.alt = "";
+      icon.src = iconSrc(site);
+      icon.addEventListener("error", () => {
+        icon.src = "favicon.svg";
+      });
+      const name = document.createElement("span");
+      name.className = "rank-row__name";
+      name.textContent = site.name;
+      const bar = document.createElement("div");
+      bar.className = "rank-row__bar";
+      const fill = document.createElement("span");
+      fill.style.width = Math.round((count / max) * 100) + "%";
+      bar.append(fill);
+      const countEl = document.createElement("span");
+      countEl.className = "rank-row__count";
+      countEl.textContent = count + "회";
+      li.append(icon, name, bar, countEl);
+      container.append(li);
+    }
+  }
+
+  function renderSpark() {
+    els.spark.innerHTML = "";
+    const keys = recentDateKeys(7);
+    const values = keys.map((k) => state.activeSeconds[k] || 0);
+    const max = Math.max(60, ...values);
+    const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      const sec = values[i];
+      const col = document.createElement("div");
+      col.className = "spark__day";
+      const bar = document.createElement("div");
+      bar.className = "spark__bar";
+      if (sec === 0) bar.classList.add("is-empty");
+      const pct = max === 0 ? 0 : (sec / max) * 100;
+      bar.style.height = Math.max(3, pct) + "%";
+      const min = Math.round(sec / 60);
+      bar.title = `${k} · ${min}분`;
+      const label = document.createElement("div");
+      label.className = "spark__label";
+      const d = new Date(k + "T00:00:00");
+      label.textContent = dayNames[d.getDay()];
+      col.append(bar, label);
+      els.spark.append(col);
+    }
   }
 
   function registerServiceWorker() {
@@ -451,6 +737,7 @@
     pruneVisits();
     saveState();
     attachEvents();
+    startActiveTracking();
     registerServiceWorker();
     render();
   }

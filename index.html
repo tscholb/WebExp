@@ -26,6 +26,9 @@
           <p id="today-label" class="appbar__date"></p>
         </div>
         <div class="appbar__actions">
+          <button id="btn-history" type="button" class="icon-btn" aria-label="히스토리" title="히스토리">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36M3 5v4h4M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <button id="btn-import" type="button" class="icon-btn" aria-label="가져오기" title="가져오기">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -59,7 +62,7 @@
 
     <template id="card-template">
       <article class="card" draggable="false">
-        <label class="card__check">
+        <label class="card__check" title="방문 체크 토글">
           <input type="checkbox" class="card__checkbox" />
           <span class="card__checkmark" aria-hidden="true"></span>
         </label>
@@ -70,14 +73,59 @@
             <div class="card__host"></div>
           </div>
         </a>
-        <div class="card__tools">
-          <button type="button" class="tool" data-action="move-up" title="위로">↑</button>
-          <button type="button" class="tool" data-action="move-down" title="아래로">↓</button>
-          <button type="button" class="tool" data-action="edit" title="편집">✎</button>
-          <button type="button" class="tool tool--danger" data-action="delete" title="삭제">🗑</button>
-        </div>
       </article>
     </template>
+
+    <dialog id="action-sheet" class="action-sheet">
+      <div class="action-sheet__inner">
+        <div class="action-sheet__title" id="action-sheet-title"></div>
+        <button type="button" class="action-sheet__item" data-action="edit">
+          <span class="action-sheet__icon" aria-hidden="true">✎</span> 편집
+        </button>
+        <button type="button" class="action-sheet__item" data-action="move-up">
+          <span class="action-sheet__icon" aria-hidden="true">↑</span> 카테고리 안에서 위로
+        </button>
+        <button type="button" class="action-sheet__item" data-action="move-down">
+          <span class="action-sheet__icon" aria-hidden="true">↓</span> 카테고리 안에서 아래로
+        </button>
+        <button type="button" class="action-sheet__item action-sheet__item--danger" data-action="delete">
+          <span class="action-sheet__icon" aria-hidden="true">🗑</span> 삭제
+        </button>
+        <button type="button" class="action-sheet__cancel" data-action="cancel">취소</button>
+      </div>
+    </dialog>
+
+    <dialog id="history-dialog" class="dialog dialog--wide">
+      <div class="history">
+        <div class="history__header">
+          <h2>히스토리</h2>
+          <button type="button" id="history-close" class="icon-btn" aria-label="닫기">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <section class="history__section">
+          <h3>오늘 요약</h3>
+          <div class="stat-grid">
+            <div class="stat"><div class="stat__label">클릭</div><div class="stat__value" id="stat-clicks">0<span class="stat__unit">회</span></div></div>
+            <div class="stat"><div class="stat__label">방문</div><div class="stat__value" id="stat-visited">0 / 0</div></div>
+            <div class="stat"><div class="stat__label">사용 시간</div><div class="stat__value" id="stat-active">0<span class="stat__unit">분</span></div></div>
+            <div class="stat"><div class="stat__label">연속 일수</div><div class="stat__value" id="stat-streak">0<span class="stat__unit">일</span></div></div>
+          </div>
+        </section>
+        <section class="history__section">
+          <h3>최근 7일 TOP 사이트</h3>
+          <ul class="rank-list" id="rank-list"></ul>
+        </section>
+        <section class="history__section">
+          <h3>오늘 사이트별 클릭</h3>
+          <ul class="rank-list" id="today-list"></ul>
+        </section>
+        <section class="history__section">
+          <h3>최근 7일 사용 시간</h3>
+          <div class="spark" id="spark"></div>
+        </section>
+      </div>
+    </dialog>
 
     <dialog id="site-dialog" class="dialog">
       <form id="site-form" method="dialog" class="dialog__form">
