@@ -2,32 +2,60 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>루틴 브라우징 대시보드</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>루틴 브라우징</title>
+    <meta name="description" content="매일 들러보는 사이트를 한 화면에서 열고 오늘 방문을 체크하는 개인용 대시보드" />
+    <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="루틴" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="topbar">
-      <div class="topbar__title">
-        <h1>루틴 브라우징</h1>
-        <p id="today-label" class="topbar__date"></p>
+    <header class="appbar">
+      <div class="appbar__inner">
+        <div class="appbar__title">
+          <h1>루틴 브라우징</h1>
+          <p id="today-label" class="appbar__date"></p>
+        </div>
+        <div class="appbar__actions">
+          <button id="btn-import" type="button" class="icon-btn" aria-label="가져오기" title="가져오기">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button id="btn-export" type="button" class="icon-btn" aria-label="내보내기" title="내보내기">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <input id="import-file" type="file" accept="application/json" hidden />
+        </div>
       </div>
-      <div class="topbar__progress">
+      <div class="appbar__progress">
         <div class="progress">
           <div id="progress-bar" class="progress__bar"></div>
         </div>
         <span id="progress-label" class="progress__label">0 / 0</span>
       </div>
-      <div class="topbar__actions">
-        <button id="btn-add" type="button" class="btn btn--primary">+ 사이트 추가</button>
-        <button id="btn-export" type="button" class="btn">내보내기</button>
-        <button id="btn-import" type="button" class="btn">가져오기</button>
-        <input id="import-file" type="file" accept="application/json" hidden />
-      </div>
     </header>
 
+    <aside id="install-banner" class="install-banner" hidden>
+      <div class="install-banner__text">홈 화면에 추가해 앱처럼 쓰기</div>
+      <div class="install-banner__actions">
+        <button id="btn-install-dismiss" type="button" class="btn">닫기</button>
+        <button id="btn-install" type="button" class="btn btn--primary">설치</button>
+      </div>
+    </aside>
+
     <main id="dashboard" class="dashboard"></main>
+
+    <button id="btn-add" type="button" class="fab" aria-label="사이트 추가" title="사이트 추가">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+    </button>
 
     <template id="card-template">
       <article class="card" draggable="false">

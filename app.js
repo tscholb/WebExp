@@ -28,7 +28,13 @@
     dialogCancel: document.getElementById("dialog-cancel"),
     categoryOptions: document.getElementById("category-options"),
     cardTemplate: document.getElementById("card-template"),
+    installBanner: document.getElementById("install-banner"),
+    btnInstall: document.getElementById("btn-install"),
+    btnInstallDismiss: document.getElementById("btn-install-dismiss"),
   };
+
+  let deferredInstallPrompt = null;
+  const INSTALL_DISMISS_KEY = "routineBrowsing.installDismissed";
 
   let state = loadState();
   let editingId = null;
@@ -405,6 +411,39 @@
         render();
       }
     });
+
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      if (localStorage.getItem(INSTALL_DISMISS_KEY) !== "1") {
+        els.installBanner.hidden = false;
+      }
+    });
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      els.installBanner.hidden = true;
+    });
+    els.btnInstall.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      try {
+        await deferredInstallPrompt.userChoice;
+      } catch {}
+      deferredInstallPrompt = null;
+      els.installBanner.hidden = true;
+    });
+    els.btnInstallDismiss.addEventListener("click", () => {
+      localStorage.setItem(INSTALL_DISMISS_KEY, "1");
+      els.installBanner.hidden = true;
+    });
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") return;
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    });
   }
 
   function init() {
@@ -412,6 +451,7 @@
     pruneVisits();
     saveState();
     attachEvents();
+    registerServiceWorker();
     render();
   }
 
