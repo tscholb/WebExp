@@ -34,8 +34,7 @@
     btnHistory: document.getElementById("btn-history"),
     historyDialog: document.getElementById("history-dialog"),
     historyClose: document.getElementById("history-close"),
-    actionSheet: document.getElementById("action-sheet"),
-    actionSheetTitle: document.getElementById("action-sheet-title"),
+    btnEdit: document.getElementById("btn-edit"),
     statClicks: document.getElementById("stat-clicks"),
     statVisited: document.getElementById("stat-visited"),
     statActive: document.getElementById("stat-active"),
@@ -50,6 +49,7 @@
 
   let state = loadState();
   let editingId = null;
+  let editMode = false;
 
   function uid() {
     if (crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
@@ -215,6 +215,9 @@
       header.className = "category__header";
       const h2 = document.createElement("h2");
       h2.textContent = category;
+      h2.addEventListener("click", () => {
+        if (editMode) renameCategory(category);
+      });
       const count = document.createElement("span");
       count.className = "category__count";
       const catVisited = sites.filter((s) => isVisitedToday(s.id)).length;
@@ -244,11 +247,23 @@
 
     const link = node.querySelector(".card__link");
     link.href = site.url;
-    link.addEventListener("click", () => {
+    link.addEventListener("click", (e) => {
+      if (editMode) {
+        e.preventDefault();
+        openDialogForEdit(site.id);
+        return;
+      }
       recordClick(site.id);
       markVisited(site.id);
       saveState();
       setTimeout(render, 0);
+    });
+
+    node.addEventListener("click", (e) => {
+      if (!editMode) return;
+      if (e.target.closest(".card__tools")) return;
+      if (e.target.closest(".card__link")) return;
+      openDialogForEdit(site.id);
     });
 
     const icon = node.querySelector(".card__icon");
@@ -260,86 +275,15 @@
     node.querySelector(".card__name").textContent = site.name;
     node.querySelector(".card__host").textContent = hostFromUrl(site.url);
 
-    attachLongPress(node, link, site.id);
+    node.querySelectorAll(".tool").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleToolAction(site.id, btn.dataset.action);
+      });
+    });
 
     return node;
-  }
-
-  const LONG_PRESS_MS = 500;
-
-  function attachLongPress(card, link, siteId) {
-    let timer = null;
-    let triggered = false;
-    let startX = 0;
-    let startY = 0;
-
-    const cancel = () => {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      card.classList.remove("is-pressing");
-    };
-
-    const start = (e) => {
-      if (e.button != null && e.button !== 0) return;
-      triggered = false;
-      const p = e.touches ? e.touches[0] : e;
-      startX = p.clientX;
-      startY = p.clientY;
-      card.classList.add("is-pressing");
-      cancel._timer = timer = setTimeout(() => {
-        triggered = true;
-        card.classList.remove("is-pressing");
-        if (navigator.vibrate) {
-          try { navigator.vibrate(20); } catch {}
-        }
-        openActionSheet(siteId);
-      }, LONG_PRESS_MS);
-    };
-
-    const move = (e) => {
-      if (!timer) return;
-      const p = e.touches ? e.touches[0] : e;
-      if (Math.abs(p.clientX - startX) > 8 || Math.abs(p.clientY - startY) > 8) cancel();
-    };
-
-    card.addEventListener("pointerdown", start);
-    card.addEventListener("pointermove", move);
-    card.addEventListener("pointerup", cancel);
-    card.addEventListener("pointercancel", cancel);
-    card.addEventListener("pointerleave", cancel);
-
-    link.addEventListener("click", (e) => {
-      if (triggered) {
-        e.preventDefault();
-        triggered = false;
-      }
-    });
-
-    card.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      cancel();
-      openActionSheet(siteId);
-    });
-  }
-
-  function openActionSheet(siteId) {
-    const site = siteById(siteId);
-    if (!site) return;
-    els.actionSheetTitle.textContent = site.name;
-    els.actionSheet.dataset.siteId = siteId;
-    els.actionSheet.showModal();
-  }
-
-  function handleActionSheetClick(e) {
-    const btn = e.target.closest("[data-action]");
-    if (!btn) return;
-    const action = btn.dataset.action;
-    const id = els.actionSheet.dataset.siteId;
-    els.actionSheet.close();
-    if (action === "cancel" || !id) return;
-    handleToolAction(id, action);
   }
 
   function handleToolAction(id, action) {
@@ -568,11 +512,27 @@
       if (e.target === els.historyDialog) els.historyDialog.close();
     });
 
-    els.actionSheet.addEventListener("click", handleActionSheetClick);
-    els.actionSheet.addEventListener("cancel", (e) => {
-      e.preventDefault();
-      els.actionSheet.close();
-    });
+    els.btnEdit.addEventListener("click", toggleEditMode);
+  }
+
+  function toggleEditMode() {
+    editMode = !editMode;
+    document.body.classList.toggle("edit-mode", editMode);
+    els.btnEdit.classList.toggle("is-active", editMode);
+    els.btnEdit.setAttribute("aria-pressed", editMode ? "true" : "false");
+    els.btnEdit.title = editMode ? "편집 완료" : "편집 모드";
+  }
+
+  function renameCategory(oldName) {
+    const next = prompt(`"${oldName}" 카테고리 이름을 바꿉니다.`, oldName);
+    if (next == null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === oldName) return;
+    for (const s of state.sites) {
+      if (s.category === oldName) s.category = trimmed;
+    }
+    saveState();
+    render();
   }
 
   function openHistory() {

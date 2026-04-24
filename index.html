@@ -26,6 +26,9 @@
           <p id="today-label" class="appbar__date"></p>
         </div>
         <div class="appbar__actions">
+          <button id="btn-edit" type="button" class="icon-btn" aria-label="편집 모드" title="편집 모드" aria-pressed="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16v4z M14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <button id="btn-history" type="button" class="icon-btn" aria-label="히스토리" title="히스토리">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36M3 5v4h4M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
@@ -54,6 +57,8 @@
       </div>
     </aside>
 
+    <div class="edit-banner">편집 모드 · 카드를 탭해 편집하거나 ↑ ↓ 🗑 · 카테고리 이름을 눌러 일괄 변경</div>
+
     <main id="dashboard" class="dashboard"></main>
 
     <button id="btn-add" type="button" class="fab" aria-label="사이트 추가" title="사이트 추가">
@@ -73,27 +78,13 @@
             <div class="card__host"></div>
           </div>
         </a>
+        <div class="card__tools" aria-hidden="true">
+          <button type="button" class="tool" data-action="move-up" aria-label="위로" title="위로">↑</button>
+          <button type="button" class="tool" data-action="move-down" aria-label="아래로" title="아래로">↓</button>
+          <button type="button" class="tool tool--danger" data-action="delete" aria-label="삭제" title="삭제">🗑</button>
+        </div>
       </article>
     </template>
-
-    <dialog id="action-sheet" class="action-sheet">
-      <div class="action-sheet__inner">
-        <div class="action-sheet__title" id="action-sheet-title"></div>
-        <button type="button" class="action-sheet__item" data-action="edit">
-          <span class="action-sheet__icon" aria-hidden="true">✎</span> 편집
-        </button>
-        <button type="button" class="action-sheet__item" data-action="move-up">
-          <span class="action-sheet__icon" aria-hidden="true">↑</span> 카테고리 안에서 위로
-        </button>
-        <button type="button" class="action-sheet__item" data-action="move-down">
-          <span class="action-sheet__icon" aria-hidden="true">↓</span> 카테고리 안에서 아래로
-        </button>
-        <button type="button" class="action-sheet__item action-sheet__item--danger" data-action="delete">
-          <span class="action-sheet__icon" aria-hidden="true">🗑</span> 삭제
-        </button>
-        <button type="button" class="action-sheet__cancel" data-action="cancel">취소</button>
-      </div>
-    </dialog>
 
     <dialog id="history-dialog" class="dialog dialog--wide">
       <div class="history">

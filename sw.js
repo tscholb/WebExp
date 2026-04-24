@@ -1,4 +1,4 @@
-const CACHE = "routine-browsing-v2";
+const CACHE = "routine-browsing-v3";
 const ASSETS = [
   "./",
   "./index.html",
