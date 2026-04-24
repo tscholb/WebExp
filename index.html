@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>루틴 브라우징 대시보드</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__title">
+        <h1>루틴 브라우징</h1>
+        <p id="today-label" class="topbar__date"></p>
+      </div>
+      <div class="topbar__progress">
+        <div class="progress">
+          <div id="progress-bar" class="progress__bar"></div>
+        </div>
+        <span id="progress-label" class="progress__label">0 / 0</span>
+      </div>
+      <div class="topbar__actions">
+        <button id="btn-add" type="button" class="btn btn--primary">+ 사이트 추가</button>
+        <button id="btn-export" type="button" class="btn">내보내기</button>
+        <button id="btn-import" type="button" class="btn">가져오기</button>
+        <input id="import-file" type="file" accept="application/json" hidden />
+      </div>
+    </header>
+
+    <main id="dashboard" class="dashboard"></main>
+
+    <template id="card-template">
+      <article class="card" draggable="false">
+        <label class="card__check">
+          <input type="checkbox" class="card__checkbox" />
+          <span class="card__checkmark" aria-hidden="true"></span>
+        </label>
+        <a class="card__link" target="_blank" rel="noopener noreferrer">
+          <img class="card__icon" alt="" loading="lazy" />
+          <div class="card__text">
+            <div class="card__name"></div>
+            <div class="card__host"></div>
+          </div>
+        </a>
+        <div class="card__tools">
+          <button type="button" class="tool" data-action="move-up" title="위로">↑</button>
+          <button type="button" class="tool" data-action="move-down" title="아래로">↓</button>
+          <button type="button" class="tool" data-action="edit" title="편집">✎</button>
+          <button type="button" class="tool tool--danger" data-action="delete" title="삭제">🗑</button>
+        </div>
+      </article>
+    </template>
+
+    <dialog id="site-dialog" class="dialog">
+      <form id="site-form" method="dialog" class="dialog__form">
+        <h2 id="dialog-title">사이트 추가</h2>
+        <label>
+          <span>이름</span>
+          <input name="name" type="text" required maxlength="60" autocomplete="off" />
+        </label>
+        <label>
+          <span>URL</span>
+          <input name="url" type="url" required placeholder="https://example.com" />
+        </label>
+        <label>
+          <span>카테고리</span>
+          <input name="category" type="text" required list="category-options" maxlength="30" autocomplete="off" />
+          <datalist id="category-options"></datalist>
+        </label>
+        <label>
+          <span>아이콘 URL (선택)</span>
+          <input name="iconUrl" type="url" placeholder="비워두면 자동" />
+        </label>
+        <div class="dialog__actions">
+          <button type="button" value="cancel" id="dialog-cancel" class="btn">취소</button>
+          <button type="submit" class="btn btn--primary">저장</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
